@@ -18,7 +18,7 @@ Use Node.js 22 for deploying Cloud Functions.
 
 1. Create or select a Firebase project. In **Project settings → General → Your apps**, create a web app and copy its public web configuration to `.env.local` using the variable names in `.env.example`. The web API key identifies the project; do not put server secrets in `VITE_` variables.
 2. Enable **Email/Password** and **Google** providers in Firebase Authentication. Configure authorized domains and the OAuth consent/application as needed.
-3. Install and deploy the functions and Firestore policies:
+3. Install and deploy the functions and Firestore policies. Cloud Functions require the Firebase project to use the **Blaze** plan:
 
    ```sh
    npm --prefix functions install
@@ -28,8 +28,10 @@ Use Node.js 22 for deploying Cloud Functions.
    npx firebase-tools deploy --only firestore:rules,firestore:indexes,functions
    ```
 
-4. Create an account through the public site. Wait for its `profiles/{uid}` document to appear in Firestore, confirm the UID and email in Authentication, then use the Firebase Console or a trusted Admin SDK environment to change that profile's `role` to `owner`. This is a one-time bootstrap; never expose owner provisioning as a public endpoint. Owners can grant `editor`, `admin`, and `owner` roles from `/admin`.
-5. Add the configured Firebase variables to the production frontend environment and deploy the Vite `dist` output to a static host. Configure SPA rewrites so `/admin` serves `index.html`.
+4. Create an account through the public site. Wait for its `profiles/{uid}` document to appear in Firestore, confirm the UID and email in Authentication, then use the Firebase Console or a trusted Admin SDK environment to change that profile's `role` to `owner`. This is a one-time bootstrap; never expose owner provisioning as a public endpoint. Owners can grant `editor`, `admin`, and `owner` roles from `/VCKAIA/admin`.
+5. GitHub Pages deploys automatically from `main` using `.github/workflows/pages.yml`. The Firebase web config is provided through the repository's Actions variables. The public URL is `https://vckaia.github.io/VCKAIA/`; add `vckaia.github.io` to Firebase Authentication's authorized domains and configure the Google OAuth provider for this domain. The workflow publishes a `404.html` fallback for the `/VCKAIA/admin` route.
+
+Firebase Hosting is also configured for `https://vckaia.web.app` and remains an optional free static-hosting alternative. Hosting and Firestore are deployed, but member account provisioning, quizzes, admin operations, and the AI desk depend on Cloud Functions, which could not be deployed until the Firebase project is upgraded to Blaze.
 
 The Functions use the default `us-central1` region. Firestore rules keep team contact details private, expose only published site content and aggregate quiz standings, and restrict role changes, scoring, moderation, and results to authenticated server-side functions. New accounts always receive the regular `member` role.
 
@@ -50,4 +52,4 @@ Set `VITE_CLOUDINARY_CLOUD_NAME` and `VITE_CLOUDINARY_UPLOAD_PRESET` in the fron
 
 ## Admin portal
 
-`/admin` provides role-gated management for events, competition series, team registrations, competition results, quiz questions, submissions, content, and member roles. Inter-school teams register without accounts; quiz answers are checked server-side; member submissions are private until approved. Keep owner bootstrap and Firebase project credentials restricted to trusted maintainers.
+`/VCKAIA/admin` provides role-gated management for events, competition series, team registrations, competition results, quiz questions, submissions, content, and member roles. Inter-school teams register without accounts; quiz answers are checked server-side; member submissions are private until approved. Keep owner bootstrap and Firebase project credentials restricted to trusted maintainers.
