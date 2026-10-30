@@ -7,7 +7,7 @@ import {
 import {
   addRecord, askVckaiaAssistant, assignMemberRole,
   createMemberSubmission, createTeamRegistration, getAdminDashboardData,
-  ensureMemberProfile, getGuestQuizScore, getMemberProfile, getPublicSiteData,
+  completeGoogleRedirect, ensureMemberProfile, getGuestQuizScore, getMemberProfile, getPublicSiteData,
   isFirebaseConfigured, recordCompetitionResult, registerWithEmail,
   reviewMemberSubmission, saveQuizAttempt, signInWithEmail, signInWithGoogle as firebaseSignInWithGoogle,
   signOutMember, updateRecord, watchAuth, type AdminContentItem, type Competition,
@@ -97,7 +97,7 @@ function App() {
         return;
       }
       setAuthLoading(true);
-      void ensureMemberProfile().then(() => getMemberProfile(user.uid)).then((memberProfile) => {
+      void ensureMemberProfile(user).then(() => getMemberProfile(user.uid)).then((memberProfile) => {
         if (!active) return;
         if (!memberProfile) {
           notify("Your member profile is not ready yet. Try signing in again.", "error");
@@ -113,6 +113,11 @@ function App() {
         notify(`Authentication could not be restored: ${error.message}`, "error");
         setAuthLoading(false);
       }
+    });
+    void completeGoogleRedirect().then((completed) => {
+      if (active && completed) notify("Welcome to VCKAIA.");
+    }).catch((error: unknown) => {
+      if (active) notify(`Google sign-in failed: ${error instanceof Error ? error.message : "Unknown Firebase error"}`, "error");
     });
     return () => {
       active = false;
@@ -418,11 +423,21 @@ function AuthModal({ onClose, notify }: { onClose: () => void; notify: (message:
   const signInWithGoogle = async () => {
     setBusy(true);
     try {
-      await firebaseSignInWithGoogle();
-      notify("Welcome to VCKAIA.");
-      onClose();
+      const method = await firebaseSignInWithGoogle();
+      if (method === "redirect") {
+        notify("Google sign-in is continuing in this tab.");
+      } else {
+        notify("Welcome to VCKAIA.");
+        onClose();
+      }
     } catch (error) {
-      notify(`Google sign-in failed: ${error instanceof Error ? error.message : "Unknown Firebase error"}`, "error");
+      const code = error instanceof Error && "code" in error ? String(error.code) : "";
+      const message = code === "auth/unauthorized-domain"
+        ? "This site is not authorized for sign-in yet. Add vckaia.github.io in Firebase Authentication → Settings → Authorized domains."
+        : code === "auth/operation-not-allowed"
+          ? "Google sign-in is not enabled. Turn on the Google provider in Firebase Authentication."
+          : error instanceof Error ? error.message : "Unknown Firebase error";
+      notify(`Google sign-in failed: ${message}`, "error");
     } finally { setBusy(false); }
   };
 

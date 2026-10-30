@@ -1,11 +1,13 @@
-import { getApp, getApps, initializeApp } from "firebase/app";
+import { FirebaseError, getApp, getApps, initializeApp } from "firebase/app";
 import {
   GoogleAuthProvider,
+  getRedirectResult,
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile,
   type User,
@@ -18,6 +20,7 @@ import {
   getFirestore,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -109,8 +112,23 @@ export async function getMemberProfile(userId: string): Promise<Profile | null> 
   return null;
 }
 
-export async function ensureMemberProfile() {
-  return callFunction<Record<string, never>, { ready: boolean }>("ensureMemberProfile", {});
+export async function ensureMemberProfile(user: User) {
+  const database = requireFirestore();
+  const reference = doc(database, "profiles", user.uid);
+  const candidateName = user.displayName?.trim() || user.email?.split("@")[0] || "";
+  const displayName = candidateName.length >= 2 ? candidateName.slice(0, 60) : "VCKAIA Member";
+  await runTransaction(database, async (transaction) => {
+    const snapshot = await transaction.get(reference);
+    if (!snapshot.exists()) {
+      transaction.set(reference, {
+        id: user.uid,
+        display_name: displayName,
+        role: "member",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    }
+  });
 }
 
 export function watchAuth(callback: (user: User | null) => void, onError: (error: Error) => void) {
@@ -138,11 +156,27 @@ export async function signInWithEmail(email: string, password: string) {
   return signInWithEmailAndPassword(auth, email, password);
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(): Promise<"popup" | "redirect"> {
   if (!auth) throw new Error("Firebase Authentication is not configured.");
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  return signInWithPopup(auth, provider);
+  try {
+    const credential = await signInWithPopup(auth, provider);
+    await ensureMemberProfile(credential.user);
+    return "popup";
+  } catch (error) {
+    if (!(error instanceof FirebaseError) || error.code !== "auth/popup-blocked") throw error;
+    await signInWithRedirect(auth, provider);
+    return "redirect";
+  }
+}
+
+export async function completeGoogleRedirect() {
+  if (!auth) return false;
+  const credential = await getRedirectResult(auth);
+  if (!credential) return false;
+  await ensureMemberProfile(credential.user);
+  return true;
 }
 
 export async function signOutMember() {
