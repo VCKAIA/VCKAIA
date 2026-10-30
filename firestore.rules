@@ -1,0 +1,160 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profilePath() {
+      return /databases/$(database)/documents/profiles/$(request.auth.uid);
+    }
+
+    function roleIs(roles) {
+      return signedIn()
+        && exists(profilePath())
+        && get(profilePath()).data.role in roles;
+    }
+
+    function isEditor() {
+      return roleIs(['editor', 'admin', 'owner']);
+    }
+
+    function isAdmin() {
+      return roleIs(['admin', 'owner']);
+    }
+
+    function validImageUrl() {
+      return !('image_url' in request.resource.data)
+        || (request.resource.data.image_url is string
+          && request.resource.data.image_url.matches('^https://res\\.cloudinary\\.com/[A-Za-z0-9_-]+/image/upload/.*$'));
+    }
+
+    match /profiles/{userId} {
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['id', 'display_name', 'role', 'created_at', 'updated_at'])
+        && request.resource.data.id == userId
+        && request.resource.data.role == 'member'
+        && request.resource.data.display_name is string
+        && request.resource.data.display_name.size() >= 2
+        && request.resource.data.display_name.size() <= 60;
+      allow get: if signedIn() && (request.auth.uid == userId || isEditor());
+      allow list: if isEditor();
+      allow update: if signedIn() && (
+        (request.auth.uid == userId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['display_name', 'updated_at'])
+          && request.resource.data.display_name is string
+          && request.resource.data.display_name.size() >= 2
+          && request.resource.data.display_name.size() <= 60)
+      );
+      allow delete: if false;
+    }
+
+    match /events/{eventId} {
+      allow read: if resource.data.status == 'published' || isEditor();
+      allow create, update, delete: if isEditor();
+    }
+
+    match /competitionSeries/{seriesId} {
+      allow read: if resource.data.status == 'active' || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /competitions/{competitionId} {
+      allow read: if resource.data.status == 'published' || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /teamRegistrations/{registrationId} {
+      allow create: if request.resource.data.keys().hasOnly([
+          'team_name', 'school', 'captain_name', 'captain_email',
+          'captain_phone', 'teammate_names', 'competition_id', 'created_at', 'updated_at'
+        ])
+        && request.resource.data.team_name is string
+        && request.resource.data.team_name.size() >= 2
+        && request.resource.data.team_name.size() <= 80
+        && request.resource.data.school is string
+        && request.resource.data.school.size() >= 2
+        && request.resource.data.school.size() <= 120
+        && request.resource.data.captain_name is string
+        && request.resource.data.captain_name.size() >= 2
+        && request.resource.data.captain_name.size() <= 80
+        && request.resource.data.captain_email is string
+        && request.resource.data.captain_email.size() <= 254
+        && request.resource.data.captain_phone is string
+        && request.resource.data.captain_phone.size() <= 30
+        && request.resource.data.teammate_names is list
+        && request.resource.data.teammate_names.size() <= 12
+        && request.resource.data.competition_id is string
+        && exists(/databases/$(database)/documents/competitions/$(request.resource.data.competition_id))
+        && get(/databases/$(database)/documents/competitions/$(request.resource.data.competition_id)).data.status == 'published'
+        && get(/databases/$(database)/documents/competitions/$(request.resource.data.competition_id)).data.registration_open == true;
+      allow get, list: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /competitionResults/{resultId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /contentItems/{contentId} {
+      allow read: if resource.data.status == 'published' || isEditor();
+      allow create, update: if isEditor() && validImageUrl();
+      allow delete: if isEditor();
+    }
+
+    match /contentSubmissions/{submissionId} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'user_id', 'kind', 'title', 'summary', 'body', 'status', 'created_at', 'updated_at', 'image_url'
+        ])
+        && validImageUrl()
+        && request.resource.data.user_id == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.kind in ['news', 'project']
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 3
+        && request.resource.data.title.size() <= 120
+        && request.resource.data.summary is string
+        && request.resource.data.summary.size() >= 3
+        && request.resource.data.summary.size() <= 300
+        && request.resource.data.body is string
+        && request.resource.data.body.size() >= 3
+        && request.resource.data.body.size() <= 5000;
+      allow get, list: if signedIn()
+        && (resource.data.user_id == request.auth.uid || isEditor());
+      allow update, delete: if false;
+    }
+
+    match /quickQuizQuestions/{questionId} {
+      allow read: if isEditor();
+      allow create, update, delete: if isEditor()
+        && request.resource.data.prompt is string
+        && request.resource.data.prompt.size() >= 5
+        && request.resource.data.prompt.size() <= 300
+        && request.resource.data.choices is list
+        && request.resource.data.choices.size() >= 2
+        && request.resource.data.choices.size() <= 5
+        && request.resource.data.correct_choice is int
+        && request.resource.data.correct_choice >= 0
+        && request.resource.data.correct_choice < request.resource.data.choices.size();
+    }
+
+    match /quizAttempts/{attemptId} {
+      allow read, write: if false;
+    }
+
+    match /quizAttemptUsage/{userId} {
+      allow read, write: if false;
+    }
+
+    match /quizLeaderboard/{userId} {
+      allow get, list: if true;
+      allow write: if false;
+    }
+
+    match /assistantUsage/{userId} {
+      allow read, write: if false;
+    }
+  }
+}
