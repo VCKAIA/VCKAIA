@@ -17,7 +17,7 @@ The public site displays a setup notice until Firebase is configured. No forms r
 Use Node.js 22 for deploying Cloud Functions.
 
 1. Create or select a Firebase project. In **Project settings → General → Your apps**, create a web app and copy its public web configuration to `.env.local` using the variable names in `.env.example`. The web API key identifies the project; do not put server secrets in `VITE_` variables.
-2. Enable **Email/Password** and **Google** providers in Firebase Authentication. Configure authorized domains and the OAuth consent/application as needed.
+2. Enable **Email/Password** and **Google** providers in Firebase Authentication. The GitHub Pages host `vckaia.github.io` is already on this project's authorized-domain list. Ensure the Google OAuth provider is enabled for both the GitHub Pages and Firebase Hosting domains.
 3. Install and deploy the functions and Firestore policies. Cloud Functions require the Firebase project to use the **Blaze** plan:
 
    ```sh
@@ -29,9 +29,9 @@ Use Node.js 22 for deploying Cloud Functions.
    ```
 
 4. Create an account through the public site. Wait for its `profiles/{uid}` document to appear in Firestore, confirm the UID and email in Authentication, then use the Firebase Console or a trusted Admin SDK environment to change that profile's `role` to `owner`. This is a one-time bootstrap; never expose owner provisioning as a public endpoint. Owners can grant `editor`, `admin`, and `owner` roles from `/VCKAIA/admin`.
-5. GitHub Pages deploys automatically from `main` using `.github/workflows/pages.yml`. The Firebase web config is provided through the repository's Actions variables. The public URL is `https://vckaia.github.io/VCKAIA/`; add `vckaia.github.io` to Firebase Authentication's authorized domains and configure the Google OAuth provider for this domain. The workflow publishes a `404.html` fallback for the `/VCKAIA/admin` route.
+5. GitHub Pages deploys automatically from `main` using `.github/workflows/pages.yml`. The Firebase web config is provided through the repository's Actions variables. The public URL is `https://vckaia.github.io/VCKAIA/`. The workflow publishes a `404.html` fallback for the `/VCKAIA/admin` route. Google sign-in falls back to a same-tab redirect when a browser blocks popups.
 
-Firebase Hosting is also configured for `https://vckaia.web.app` and remains an optional free static-hosting alternative. Hosting and Firestore are deployed, but member account provisioning, quizzes, admin operations, and the AI desk depend on Cloud Functions, which could not be deployed until the Firebase project is upgraded to Blaze.
+Firebase Hosting is also configured for `https://vckaia.web.app` and remains an optional free static-hosting alternative. Hosting and Firestore are deployed. Member authentication and regular member-profile creation use Firebase Auth and Firestore directly; quiz scoring, leaderboards, admin moderation/role management, competition results, and the AI desk require Cloud Functions, which could not be deployed until the Firebase project is upgraded to Blaze.
 
 The Functions use the default `us-central1` region. Firestore rules keep team contact details private, expose only published site content and aggregate quiz standings, and restrict role changes, scoring, moderation, and results to authenticated server-side functions. New accounts always receive the regular `member` role.
 
