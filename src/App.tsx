@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent, type MouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent, type ReactNode } from "react";
 import {
   ArrowDown, ArrowRight, ArrowUpRight, Bot, Check, ChevronDown, CircleUserRound,
   Command, Cpu, GraduationCap, Menu, Plus, Shield, Sparkles,
@@ -41,6 +41,8 @@ function App() {
   const [modal, setModal] = useState<Modal>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [content, setContent] = useState<PublicContent[]>([]);
@@ -63,6 +65,24 @@ function App() {
   const canManage = Boolean(profile && ["owner", "admin", "editor"].includes(profile.role));
   const canManageUsers = profile?.role === "owner";
   const canManageCompetitions = Boolean(profile && ["owner", "admin"].includes(profile.role));
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (event.target instanceof Node && !accountMenuRef.current?.contains(event.target)) {
+        setAccountMenuOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAccountMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [accountMenuOpen]);
 
   const notify = useCallback((message: string, tone: Toast["tone"] = "success") => {
     setToast({ message, tone });
@@ -201,13 +221,25 @@ function App() {
         </nav>
         <div className="top-actions">
           {profile ? (
-            <button className="account-chip" onClick={() => void handleSignOut(notify, setProfile)} title="Sign out">
-              <span className="avatar">{profile.display_name.slice(0, 1).toUpperCase()}</span><span>{profile.display_name.split(" ")[0]}</span><ChevronDown size={14} />
-            </button>
+            <div className="account-menu" ref={accountMenuRef}>
+              <button
+                className="account-chip"
+                type="button"
+                aria-expanded={accountMenuOpen}
+                aria-controls="account-menu-options"
+                onClick={() => setAccountMenuOpen((open) => !open)}
+              >
+                <span className="avatar">{profile.display_name.slice(0, 1).toUpperCase()}</span><span>{profile.display_name.split(" ")[0]}</span><ChevronDown size={14} />
+              </button>
+              {accountMenuOpen && <div className="account-menu-options" id="account-menu-options">
+                <div className="account-menu-name">{profile.display_name}</div>
+                {canManage && <a href={adminPath} onClick={() => setAccountMenuOpen(false)}>Admin dashboard <ArrowUpRight size={14} /></a>}
+                <button type="button" onClick={() => { setAccountMenuOpen(false); void handleSignOut(notify, setProfile); }}>Sign out</button>
+              </div>}
+            </div>
           ) : (
             <button className="button button-outline button-small" onClick={() => setModal("auth")} disabled={authLoading}>Member login <ArrowUpRight size={14} /></button>
           )}
-          {profile && canManage && <a className="admin-shortcut" href={adminPath}>Admin</a>}
           <button className="mobile-menu" aria-label="Toggle navigation" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button>
         </div>
       </header>

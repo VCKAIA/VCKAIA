@@ -51,9 +51,16 @@ button:disabled { cursor: not-allowed; opacity: .48; }
 .button-outline:hover:not(:disabled) { border-color: var(--lime); color: var(--lime); }
 .button-small { min-height: 36px; padding: 0 12px; font-size: 10px; gap: 7px; }
 .top-actions .button { min-height: 37px; padding: 0 12px; font-size: 10px; }
+.account-menu { position: relative; }
 .account-chip { border: 0; background: transparent; display: inline-flex; align-items: center; gap: 8px; color: var(--soft); cursor: pointer; font-size: 11px; }
+.account-chip:hover, .account-chip[aria-expanded="true"] { color: var(--lime); }
+.account-chip > svg { transition: transform .18s ease; }
+.account-chip[aria-expanded="true"] > svg { transform: rotate(180deg); }
+.account-menu-options { position: absolute; z-index: 20; top: calc(100% + 10px); right: 0; width: 190px; padding: 6px; border: 1px solid rgba(215,239,218,.14); border-radius: 6px; background: #102017; box-shadow: 0 14px 36px rgba(0,0,0,.4); }
+.account-menu-name { overflow: hidden; padding: 9px 10px; border-bottom: 1px solid rgba(215,239,218,.1); color: #829287; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.account-menu-options a, .account-menu-options button { width: 100%; min-height: 36px; padding: 0 10px; border: 0; border-radius: 3px; display: flex; align-items: center; justify-content: space-between; color: #d3ded5; background: transparent; text-align: left; text-decoration: none; font-size: 10px; cursor: pointer; }
+.account-menu-options a:hover, .account-menu-options button:hover { color: var(--lime); background: rgba(204,255,93,.07); }
 .avatar { width: 27px; height: 27px; border-radius: 50%; display: inline-grid; place-items: center; color: #10180e; background: var(--lime); font-size: 12px; font-weight: 800; }
-.admin-shortcut { color: var(--lime); font: 10px var(--mono); }
 .mobile-menu { display: none; border: 0; background: none; }
 .setup-notice { min-height: 36px; padding: 8px 20px; text-align: center; background: rgba(204,255,93,.075); border-bottom: 1px solid rgba(204,255,93,.16); color: #c3d0c4; font: 9px var(--mono); letter-spacing: .025em; }
 .setup-notice > span { margin-right: 7px; color: var(--lime); letter-spacing: .12em; }
@@ -493,7 +500,7 @@ h1, h2, h3, p { margin-top: 0; }
   .top-actions .button svg { display: none; }
   .account-chip { gap: 5px; font-size: 9px; }
   .account-chip > svg { display: none; }
-  .admin-shortcut { font-size: 8px; }
+  .account-menu-options { top: calc(100% + 8px); width: 180px; }
   .setup-notice { padding: 7px 11px; font-size: 8px; line-height: 1.7; }
   .setup-notice > span { display: block; margin: 0 0 2px; }
   .hero { padding: 57px 22px 75px; display: flex; flex-direction: column; align-items: stretch; gap: 38px; }
